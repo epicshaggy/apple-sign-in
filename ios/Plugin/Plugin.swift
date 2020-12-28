@@ -10,13 +10,24 @@ import AuthenticationServices
 public class SignInWithApple: CAPPlugin {
     var call: CAPPluginCall?
 
-    @objc func Authorize(_ call: CAPPluginCall) {
+    @objc func authorize(_ call: CAPPluginCall) {
         self.call = call
 
         if #available(iOS 13.0, *) {
             let appleIDProvider = ASAuthorizationAppleIDProvider()
             let request = appleIDProvider.createRequest()
-            request.requestedScopes = [.fullName, .email]
+            
+            if let scopes = getScopes(from: call) {
+                request.requestedScopes = scopes
+            }
+            
+            if call.hasOption("state") {
+                request.state = call.getString("state")!
+            }
+            
+            if call.hasOption("nonce") {
+                request.nonce = call.getString("nonce")!
+            }
 
             let authorizationController = ASAuthorizationController(authorizationRequests: [request])
             authorizationController.delegate = self
@@ -24,6 +35,26 @@ public class SignInWithApple: CAPPlugin {
         } else {
             call.reject("Sign in with Apple is available on iOS 13.0+ only.")
         }
+    }
+    
+    @available(iOS 13.0, *)
+    private func getScopes(from call: CAPPluginCall) -> [ASAuthorization.Scope]?{
+        var authorizationScopes: [ASAuthorization.Scope] = []
+        
+        if let scopes = call.getString("scopes"){
+            if scopes.lowercased().contains("name") {
+                authorizationScopes.append(.fullName)
+            }
+            
+            if scopes.lowercased().contains("email"){
+                authorizationScopes.append(.email)
+            }
+            
+            if(scopes.count > 0){
+                return authorizationScopes
+            }
+        }
+        return nil
     }
 }
 
